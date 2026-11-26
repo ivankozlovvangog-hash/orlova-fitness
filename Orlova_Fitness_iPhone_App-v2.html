@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Орлова фитнес">
+<title>Орлова фитнес — Планировщик тренера</title>
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --text: #000000;
+    --text-sec: #8E8E93;
+    --accent: #FF2D55;
+    --accent-soft: rgba(255, 45, 85, 0.12);
+    --blue: #007AFF;
+    --green: #34C759;
+    --orange: #FF9500;
+    --border: rgba(60, 60, 67, 0.14);
+    --tab-bg: rgba(249, 249, 249, 0.96);
+    --input-bg: #E5E5EA;
+    --shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  [data-theme="dark"] {
+    --bg: #000000;
+    --card: #1C1C1E;
+    --text: #FFFFFF;
+    --text-sec: #8E8E93;
+    --accent: #FF375F;
+    --accent-soft: rgba(255, 55, 95, 0.18);
+    --blue: #0A84FF;
+    --green: #30D158;
+    --orange: #FF9F0A;
+    --border: rgba(84, 84, 88, 0.35);
+    --tab-bg: rgba(28, 28, 30, 0.96);
+    --input-bg: #2C2C2E;
+    --shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input, textarea, select {
+    user-select: text;
+    -webkit-user-select: text;
+    font-size: 16px !important; /* Защита от автозума Safari при фокусе */
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Жестко фиксируем экран, убираем bounce-эффект Safari */
+    overscroll-behavior: none;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* Каркас приложения: жесткий flexbox на весь экран */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Статичная верхняя шапка */
+  .header {
+    flex-shrink: 0;
+    background: var(--tab-bg);
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    border-bottom: 0.5px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 20;
+  }
+  .brand-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .brand-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .page-title {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pill-btn {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--shadow);
+  }
+  .pill-btn:active { opacity: 0.7; }
+
+  /* Внутренняя прокручиваемая область (единственное место, где разрешен скролл) */
+  .main-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 14px 16px 24px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Smart Lists Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    border: 1.5px solid transparent;
+  }
+  .stat-card:active { transform: scale(0.98); }
+  .stat-card.active { border-color: var(--accent); }
+  .stat-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .stat-icon { font-size: 20px; }
+  .stat-count { font-size: 22px; font-weight: 700; }
+  .stat-label { font-size: 13px; font-weight: 600; color: var(--text-sec); }
+
+  /* Теги: статичная сетка без горизонтального "елозанья" */
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tag-chip {
+    background: var(--card);
+    color: var(--text-sec);
+    border: 0.5px solid var(--border);
+    padding: 6px 11px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tag-chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* Task List */
+  .task-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .check-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--text-sec);
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .task-card.done .check-circle {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+  .task-card.done .task-title {
+    text-decoration: line-through;
+    color: var(--text-sec);
+  }
+  .task-body { flex: 1; min-width: 0; cursor: pointer; }
+  .task-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    word-wrap: break-word;
+  }
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-sec);
+    align-items: center;
+  }
+  .badge {
+    background: var(--input-bg);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .badge.accent {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  /* Client Cards */
+  .client-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .client-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .client-name { font-size: 17px; font-weight: 700; }
+  .client-sub {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .client-info {
+    font-size: 13px;
+    color: var(--text-sec);
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--input-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+
+  /* Timer & Cards */
+  .section-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .section-title { font-size: 17px; font-weight: 700; margin: 0 0 12px; }
+  .timer-display {
+    font-size: 56px;
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    margin: 10px 0 4px;
+    letter-spacing: -1px;
+  }
+  .timer-sub {
+    text-align: center;
+    color: var(--text-sec);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .preset-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .preset-btn {
+    background: var(--input-bg);
+    border: none;
+    color: var(--text);
+    padding: 10px 0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .preset-btn.active { background: var(--accent); color: #fff; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-sec { background: var(--input-bg); color: var(--text); }
+  .btn-danger { background: rgba(255, 59, 48, 0.14); color: #FF3B30; }
+  .btn-full { width: 100%; }
+
+  /* Статичный нижний Tab Bar (не прыгает при прокрутке) */
+  .tab-bar {
+    flex-shrink: 0;
+    background: var(--tab-bg);
+    border-top: 0.5px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    z-index: 30;
+  }
+  .tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: var(--text-sec);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 10px;
+  }
+  .tab-item.active { color: var(--accent); }
+  .tab-icon { font-size: 20px; line-height: 1.1; }
+  .fab-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 26px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(255, 45, 85, 0.35);
+    cursor: pointer;
+    margin-top: -10px;
+  }
+
+  /* Жестко зафиксированные модальные окна */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 50;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    overscroll-behavior: none;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-sheet {
+    background: var(--bg);
+    width: 100%;
+    max-width: 600px;
+    max-height: 88dvh;
+    border-radius: 20px 20px 0 0;
+    padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .modal-title { font-size: 19px; font-weight: 700; margin: 0; }
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--input-bg);
+    border: none;
+    color: var(--text-sec);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .form-group { margin-bottom: 12px; }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-sec);
+    margin-bottom: 5px;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 11px 12px;
+    outline: none;
+  }
+  .form-textarea { min-height: 75px; resize: none; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chip-select { display: flex; flex-wrap: wrap; gap: 6px; }
+  .select-pill {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    color: var(--text);
+    padding: 6px 11px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .select-pill.selected {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .empty-state {
+    text-align: center;
+    color: var(--text-sec);
+    padding: 36px 16px;
+    font-size: 15px;
+  }
+  .guide-list {
+    padding-left: 18px;
+    margin: 8px 0 0;
+    color: var(--text-sec);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .guide-list li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="header">
+    <div class="brand-bar">
+      <div class="brand-title">💪 Орлова фитнес • Планировщик тренера</div>
+    </div>
+    <div class="header-top">
+      <h1 class="page-title" id="headerTitle">Сегодня</h1>
+      <div class="header-actions">
+        <button class="pill-btn" onclick="openTemplatesModal()">⚡ Шаблон</button>
+        <button class="pill-btn" onclick="toggleTheme()" id="themeBtn">🌓</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-scroll" id="mainScroll">
+    <!-- VIEW 1: TASKS -->
+    <section id="view-tasks" class="view active">
+      <div class="stats-grid">
+        <div class="stat-card active" data-filter="today" onclick="setFilter('today')">
+          <div class="stat-top"><span class="stat-icon">📅</span><span class="stat-count" id="count-today">0</span></div>
+          <div class="stat-label">Сегодня</div>
+        </div>
+        <div class="stat-card" data-filter="week" onclick="setFilter('week')">
+          <div class="stat-top"><span class="stat-icon">🗓</span><span class="stat-count" id="count-week">0</span></div>
+          <div class="stat-label">7 дней</div>
+        </div>
+        <div class="stat-card" data-filter="inbox" onclick="setFilter('inbox')">
+          <div class="stat-top"><span class="stat-icon">📥</span><span class="stat-count" id="count-inbox">0</span></div>
+          <div class="stat-label">Входящие</div>
+        </div>
+        <div class="stat-card" data-filter="all" onclick="setFilter('all')">
+          <div class="stat-top"><span class="stat-icon">📋</span><span class="stat-count" id="count-all">0</span></div>
+          <div class="stat-label">Все</div>
+        </div>
+      </div>
+
+      <div class="tags-wrap" id="tagFilters">
+        <div class="tag-chip active" data-tag="all" onclick="setTagFilter('all')">Все теги</div>
+        <div class="tag-chip" data-tag="#тренировка" onclick="setTagFilter('#тренировка')">#тренировка</div>
+        <div class="tag-chip" data-tag="#питание" onclick="setTagFilter('#питание')">#питание</div>
+        <div class="tag-chip" data-tag="#замеры" onclick="setTagFilter('#замеры')">#замеры</div>
+        <div class="tag-chip" data-tag="#онлайн" onclick="setTagFilter('#онлайн')">#онлайн</div>
+        <div class="tag-chip" data-tag="#оплата" onclick="setTagFilter('#оплата')">#оплата</div>
+      </div>
+
+      <div id="tasksList"></div>
+    </section>
+
+    <!-- VIEW 2: CLIENTS -->
+    <section id="view-clients" class="view">
+      <div style="margin-bottom: 12px;">
+        <button class="btn btn-primary btn-full" onclick="openClientModal()">＋ Добавить клиента</button>
+      </div>
+      <div id="clientsList"></div>
+    </section>
+
+    <!-- VIEW 3: TIMER -->
+    <section id="view-timer" class="view">
+      <div class="section-card">
+        <h2 class="section-title">Таймер отдыха между подходами</h2>
+        <div class="timer-display" id="timerDisplay">01:30</div>
+        <div class="timer-sub" id="timerLabel">Отдых 90 сек</div>
+        <div class="preset-row">
+          <button class="preset-btn" onclick="setTimer(45, 'Отдых 45 сек')">45с</button>
+          <button class="preset-btn" onclick="setTimer(60, 'Отдых 1 мин')">1м</button>
+          <button class="preset-btn active" onclick="setTimer(90, 'Отдых 90 сек')">1.5м</button>
+          <button class="preset-btn" onclick="setTimer(120, 'Отдых 2 мин')">2м</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="timerStartBtn" onclick="toggleTimer()">▶ Старт</button>
+          <button class="btn btn-sec" onclick="resetTimer()">↺ Сброс</button>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <h2 class="section-title">⏱ Режим фокуса (Помодоро)</h2>
+        <p style="font-size: 14px; color: var(--text-sec); margin: 0 0 12px;">Для составления программ тренировок и расчетов КБЖУ</p>
+        <button class="btn btn-sec btn-full" onclick="setTimer(1500, 'Фокус 25 мин')">Установить 25 минут</button>
+      </div>
+    </section>
+
+    <!-- VIEW 4: BASE / SETTINGS -->
+    <section id="view-base" class="view">
+      <div class="section-card">
+        <h2 class="section-title">💾 Резервное копирование</h2>
+        <p style="font-size: 14px; color: var(--text-sec); margin: 0 0 14px; line-height: 1.45;">
+          Все данные «Орлова фитнес» автоматически сохраняются в памяти вашего iPhone. Скачивайте файл копии раз в неделю, чтобы не потерять базу при очистке Safari.
+        </p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="exportData()">⬇ Скачать файл</button>
+          <button class="btn btn-sec" onclick="document.getElementById('importFile').click()">⬆ Загрузить</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+
+      <div class="section-card">
+        <h2 class="section-title">📲 Как закрепить «Орлова фитнес» на экране iPhone</h2>
+        <ol class="guide-list">
+          <li>Откройте приложение в браузере <strong>Safari</strong>.</li>
+          <li>Нажмите кнопку <strong>«Поделиться»</strong> (квадрат со стрелкой вверх внизу экрана).</li>
+          <li>Выберите пункт <strong>«На экран „Домой“»</strong>.</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM TAB BAR -->
+  <nav class="tab-bar">
+    <button class="tab-item active" data-view="tasks" onclick="switchView('tasks')">
+      <span class="tab-icon">✓</span><span>Задачи</span>
+    </button>
+    <button class="tab-item" data-view="clients" onclick="switchView('clients')">
+      <span class="tab-icon">👥</span><span>Клиенты</span>
+    </button>
+    <button class="fab-btn" onclick="openTaskModal()">＋</button>
+    <button class="tab-item" data-view="timer" onclick="switchView('timer')">
+      <span class="tab-icon">⏱</span><span>Таймер</span>
+    </button>
+    <button class="tab-item" data-view="base" onclick="switchView('base')">
+      <span class="tab-icon">⚙</span><span>База</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL: TASK -->
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3 class="modal-title" id="taskModalTitle">Новая тренировка / задача</h3>
+      <button class="close-btn" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <input type="hidden" id="taskId">
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input type="text" class="form-input" id="taskTitle" placeholder="Например: Силовая (ноги и ягодицы)">
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="form-label">Дата</label>
+        <input type="date" class="form-input" id="taskDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Время</label>
+        <input type="time" class="form-input" id="taskTime">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Клиент</label>
+      <select class="form-select" id="taskClient">
+        <option value="">Без привязки к клиенту</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Тег</label>
+      <div class="chip-select" id="taskTagSelect">
+        <div class="select-pill selected" data-val="#тренировка" onclick="selectPill('taskTagSelect', this)">#тренировка</div>
+        <div class="select-pill" data-val="#питание" onclick="selectPill('taskTagSelect', this)">#питание</div>
+        <div class="select-pill" data-val="#замеры" onclick="selectPill('taskTagSelect', this)">#замеры</div>
+        <div class="select-pill" data-val="#онлайн" onclick="selectPill('taskTagSelect', this)">#онлайн</div>
+        <div class="select-pill" data-val="#оплата" onclick="selectPill('taskTagSelect', this)">#оплата</div>
+        <div class="select-pill" data-val="" onclick="selectPill('taskTagSelect', this)">Без тега</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Приоритет</label>
+      <div class="chip-select" id="taskPrioritySelect">
+        <div class="select-pill selected" data-val="normal" onclick="selectPill('taskPrioritySelect', this)">Обычный</div>
+        <div class="select-pill" data-val="high" onclick="selectPill('taskPrioritySelect', this)">🔴 Высокий</div>
+        <div class="select-pill" data-val="medium" onclick="selectPill('taskPrioritySelect', this)">🟠 Средний</div>
+        <div class="select-pill" data-val="low" onclick="selectPill('taskPrioritySelect', this)">🔵 Низкий</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🏋️‍♂️ План тренировки (подходы / веса)</label>
+      <textarea class="form-textarea" id="taskPlan" placeholder="1. Приседания 4х12 (40 кг)&#10;2. Румынская тяга 4х12 (35 кг)"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">📝 Заметки и самочувствие клиента</label>
+      <textarea class="form-textarea" id="taskNotes" placeholder="Сон, энергия, акцент на технику..."></textarea>
+    </div>
+    <div class="btn-row" style="margin-top: 16px;">
+      <button class="btn btn-danger" id="deleteTaskBtn" onclick="deleteTask()" style="display:none;">Удалить</button>
+      <button class="btn btn-primary" style="grid-column: span 2;" id="saveTaskBtn" onclick="saveTask()">Готово</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CLIENT -->
+<div class="modal-backdrop" id="clientModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3 class="modal-title" id="clientModalTitle">Новый клиент</h3>
+      <button class="close-btn" onclick="closeModal('clientModal')">✕</button>
+    </div>
+    <input type="hidden" id="clientId">
+    <div class="form-group">
+      <label class="form-label">Имя и фамилия</label>
+      <input type="text" class="form-input" id="clientName" placeholder="Анна Смирнова">
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="form-label">Проведено занятий</label>
+        <input type="number" class="form-input" id="clientUsed" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Всего в абонементе</label>
+        <input type="number" class="form-input" id="clientTotal" value="12" min="1">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цель, травмы, норма КБЖУ</label>
+      <textarea class="form-textarea" id="clientNotes" placeholder="Цель: снижение веса. КБЖУ: 1650 ккал (Б 120 / Ж 55 / У 170)."></textarea>
+    </div>
+    <div class="btn-row" style="margin-top: 16px;">
+      <button class="btn btn-danger" id="deleteClientBtn" onclick="deleteClient()" style="display:none;">Удалить</button>
+      <button class="btn btn-primary" style="grid-column: span 2;" id="saveClientBtn" onclick="saveClient()">Сохранить клиента</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TEMPLATES -->
+<div class="modal-backdrop" id="templatesModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3 class="modal-title">⚡ Быстрые шаблоны</h3>
+      <button class="close-btn" onclick="closeModal('templatesModal')">✕</button>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="btn btn-sec" style="justify-content:flex-start; text-align:left;" onclick="applyTemplate('Силовая: Низ тела (ягодицы + ноги)', '#тренировка', '1. Разминка суставная 7 мин\n2. Ягодичный мост 4х15\n3. Приседания 4х12\n4. Выпады в движении 3х12\n5. Сгибание ног лежа 3х15')">
+        🍑 Силовая: Низ тела (ягодицы + ноги)
+      </button>
+      <button class="btn btn-sec" style="justify-content:flex-start; text-align:left;" onclick="applyTemplate('Силовая: Верх тела (спина + плечи + руки)', '#тренировка', '1. Разминка 5 мин\n2. Тяга верхнего блока 4х12\n3. Тяга гантели в наклоне 3х12\n4. Жим гантелей сидя 3х12\n5. Разведения на среднюю дельту 3х15')">
+        💪 Силовая: Верх тела (спина + плечи)
+      </button>
+      <button class="btn btn-sec" style="justify-content:flex-start; text-align:left;" onclick="applyTemplate('Функциональная Full-Body тренировка', '#тренировка', '1. Разминка 5 мин\n2. Гоблет-присед 3х15\n3. Отжимания 3х12\n4. Тяга к поясу 3х15\n5. Планка 3х45 сек')">
+        🔥 Функциональная Full-Body
+      </button>
+      <button class="btn btn-sec" style="justify-content:flex-start; text-align:left;" onclick="applyTemplate('Контрольные замеры и фотоотчет', '#замеры', 'Вес натощак, обхват груди, талии, живота, бедер + фото в 3 ракурсах.')">
+        📏 Контрольные замеры и фотоотчет
+      </button>
+      <button class="btn btn-sec" style="justify-content:flex-start; text-align:left;" onclick="applyTemplate('Разбор дневника питания и корректировка КБЖУ', '#питание', 'Проверить норму белка, клетчатки, водный баланс и дефицит/профицит.')">
+        🥗 Разбор дневника питания (КБЖУ)
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'orlova_fitness_data_v1';
+  let state = { tasks: [], clients: [], theme: 'light' };
+  let currentFilter = 'today';
+  let currentTag = 'all';
+
+  function loadState() {
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('fittick_ios_data_v1');
+    if (raw) {
+      try { state = JSON.parse(raw); } catch(e) {}
+    }
+    if (state.theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function toggleTheme() {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', state.theme);
+    saveState();
+  }
+
+  function todayStr() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function switchView(view) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`.tab-item[data-view="${view}"]`).classList.add('active');
+    document.getElementById('mainScroll').scrollTop = 0;
+
+    const titles = {
+      tasks: getFilterTitle(currentFilter),
+      clients: 'Клиенты',
+      timer: 'Таймер',
+      base: 'База и настройки'
+    };
+    document.getElementById('headerTitle').textContent = titles[view];
+    if (view === 'tasks') renderTasks();
+    if (view === 'clients') renderClients();
+  }
+
+  function getFilterTitle(f) {
+    return { today: 'Сегодня', week: '7 дней', inbox: 'Входящие', all: 'Все задачи' }[f] || 'Сегодня';
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
+    document.getElementById('headerTitle').textContent = getFilterTitle(f);
+    renderTasks();
+  }
+
+  function setTagFilter(t) {
+    currentTag = t;
+    document.querySelectorAll('#tagFilters .tag-chip').forEach(c => c.classList.toggle('active', c.dataset.tag === t));
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const today = todayStr();
+    const weekLater = new Date();
+    weekLater.setDate(weekLater.getDate() + 7);
+    const weekStr = weekLater.toISOString().split('T')[0];
+
+    const activeTasks = state.tasks.filter(t => !t.done);
+    document.getElementById('count-today').textContent = activeTasks.filter(t => t.date === today).length;
+    document.getElementById('count-week').textContent = activeTasks.filter(t => t.date && t.date >= today && t.date <= weekStr).length;
+    document.getElementById('count-inbox').textContent = activeTasks.filter(t => !t.date).length;
+    document.getElementById('count-all').textContent = activeTasks.length;
+
+    let filtered = state.tasks.filter(t => {
+      if (currentFilter === 'today') return t.date === today;
+      if (currentFilter === 'week') return t.date && t.date >= today && t.date <= weekStr;
+      if (currentFilter === 'inbox') return !t.date;
+      return true;
+    });
+
+    if (currentTag !== 'all') {
+      filtered = filtered.filter(t => t.tag === currentTag);
+    }
+
+    filtered.sort((a, b) => (a.done - b.done) || (a.time || '99:99').localeCompare(b.time || '99:99'));
+
+    const container = document.getElementById('tasksList');
+    if (!filtered.length) {
+      container.innerHTML = `<div class="empty-state">Задач пока нет. Нажмите <strong>＋</strong> внизу или выберите <strong>⚡ Шаблон</strong>.</div>`;
+      return;
+    }
+
+    const prioIcons = { high: '🔴 ', medium: '🟠 ', low: '🔵 ', normal: '' };
+    container.innerHTML = filtered.map(t => {
+      const client = state.clients.find(c => c.id === t.clientId);
+      return `
+        <div class="task-card ${t.done ? 'done' : ''}">
+          <div class="check-circle" onclick="toggleTaskDone('${t.id}')">${t.done ? '✓' : ''}</div>
+          <div class="task-body" onclick="openTaskModal('${t.id}')">
+            <div class="task-title">${prioIcons[t.priority || 'normal']}${escapeHtml(t.title)}</div>
+            <div class="task-meta">
+              ${t.date ? `<span>📅 ${t.date}</span>` : ''}
+              ${t.time ? `<span>⏰ ${t.time}</span>` : ''}
+              ${client ? `<span class="badge accent">👤 ${escapeHtml(client.name)}</span>` : ''}
+              ${t.tag ? `<span class="badge">${escapeHtml(t.tag)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function toggleTaskDone(id) {
+    const t = state.tasks.find(x => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    if (t.done && t.tag === '#тренировка' && t.clientId) {
+      const c = state.clients.find(x => x.id === t.clientId);
+      if (c && c.used < c.total) c.used += 1;
+    }
+    saveState();
+    renderTasks();
+  }
+
+  function openTaskModal(id = null) {
+    const select = document.getElementById('taskClient');
+    select.innerHTML = '<option value="">Без привязки к клиенту</option>' +
+      state.clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${c.used}/${c.total})</option>`).join('');
+
+    if (id) {
+      const t = state.tasks.find(x => x.id === id);
+      document.getElementById('taskModalTitle').textContent = 'Редактировать задачу';
+      document.getElementById('taskId').value = t.id;
+      document.getElementById('taskTitle').value = t.title;
+      document.getElementById('taskDate').value = t.date || '';
+      document.getElementById('taskTime').value = t.time || '';
+      document.getElementById('taskClient').value = t.clientId || '';
+      document.getElementById('taskPlan').value = t.plan || '';
+      document.getElementById('taskNotes').value = t.notes || '';
+      setPillValue('taskTagSelect', t.tag || '');
+      setPillValue('taskPrioritySelect', t.priority || 'normal');
+      document.getElementById('deleteTaskBtn').style.display = 'inline-flex';
+      document.getElementById('saveTaskBtn').style.gridColumn = 'span 1';
+    } else {
+      document.getElementById('taskModalTitle').textContent = 'Новая тренировка / задача';
+      document.getElementById('taskId').value = '';
+      document.getElementById('taskTitle').value = '';
+      document.getElementById('taskDate').value = currentFilter === 'inbox' ? '' : todayStr();
+      document.getElementById('taskTime').value = '';
+      document.getElementById('taskClient').value = '';
+      document.getElementById('taskPlan').value = '';
+      document.getElementById('taskNotes').value = '';
+      setPillValue('taskTagSelect', '#тренировка');
+      setPillValue('taskPrioritySelect', 'normal');
+      document.getElementById('deleteTaskBtn').style.display = 'none';
+      document.getElementById('saveTaskBtn').style.gridColumn = 'span 2';
+    }
+    document.getElementById('taskModal').classList.add('open');
+  }
+
+  function saveTask() {
+    const title = document.getElementById('taskTitle').value.trim();
+    if (!title) return alert('Введите название задачи или тренировки');
+    const id = document.getElementById('taskId').value;
+    const data = {
+      id: id || Date.now().toString(),
+      title,
+      date: document.getElementById('taskDate').value,
+      time: document.getElementById('taskTime').value,
+      clientId: document.getElementById('taskClient').value,
+      tag: getPillValue('taskTagSelect'),
+      priority: getPillValue('taskPrioritySelect'),
+      plan: document.getElementById('taskPlan').value,
+      notes: document.getElementById('taskNotes').value,
+      done: id ? (state.tasks.find(x => x.id === id)?.done || false) : false
+    };
+    if (id) {
+      const idx = state.tasks.findIndex(x => x.id === id);
+      state.tasks[idx] = data;
+    } else {
+      state.tasks.push(data);
+    }
+    saveState();
+    closeModal('taskModal');
+    renderTasks();
+  }
+
+  function deleteTask() {
+    const id = document.getElementById('taskId').value;
+    state.tasks = state.tasks.filter(x => x.id !== id);
+    saveState();
+    closeModal('taskModal');
+    renderTasks();
+  }
+
+  function renderClients() {
+    const container = document.getElementById('clientsList');
+    if (!state.clients.length) {
+      container.innerHTML = `<div class="empty-state">Список клиентов пуст. Добавьте первого подопечного!</div>`;
+      return;
+    }
+    container.innerHTML = state.clients.map(c => {
+      const pct = Math.min(100, Math.round((c.used / Math.max(1, c.total)) * 100));
+      return `
+        <div class="client-card" onclick="openClientModal('${c.id}')">
+          <div class="client-header">
+            <span class="client-name">${escapeHtml(c.name)}</span>
+            <span class="client-sub">${c.used} / ${c.total} трен.</span>
+          </div>
+          <div class="client-info">${escapeHtml(c.notes || 'Нет заметок по КБЖУ и целям')}</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function openClientModal(id = null) {
+    if (id) {
+      const c = state.clients.find(x => x.id === id);
+      document.getElementById('clientModalTitle').textContent = 'Карточка клиента';
+      document.getElementById('clientId').value = c.id;
+      document.getElementById('clientName').value = c.name;
+      document.getElementById('clientUsed').value = c.used;
+      document.getElementById('clientTotal').value = c.total;
+      document.getElementById('clientNotes').value = c.notes || '';
+      document.getElementById('deleteClientBtn').style.display = 'inline-flex';
+      document.getElementById('saveClientBtn').style.gridColumn = 'span 1';
+    } else {
+      document.getElementById('clientModalTitle').textContent = 'Новый клиент';
+      document.getElementById('clientId').value = '';
+      document.getElementById('clientName').value = '';
+      document.getElementById('clientUsed').value = 0;
+      document.getElementById('clientTotal').value = 12;
+      document.getElementById('clientNotes').value = '';
+      document.getElementById('deleteClientBtn').style.display = 'none';
+      document.getElementById('saveClientBtn').style.gridColumn = 'span 2';
+    }
+    document.getElementById('clientModal').classList.add('open');
+  }
+
+  function saveClient() {
+    const name = document.getElementById('clientName').value.trim();
+    if (!name) return alert('Введите имя клиента');
+    const id = document.getElementById('clientId').value;
+    const data = {
+      id: id || Date.now().toString(),
+      name,
+      used: parseInt(document.getElementById('clientUsed').value || '0', 10),
+      total: parseInt(document.getElementById('clientTotal').value || '12', 10),
+      notes: document.getElementById('clientNotes').value
+    };
+    if (id) {
+      const idx = state.clients.findIndex(x => x.id === id);
+      state.clients[idx] = data;
+    } else {
+      state.clients.push(data);
+    }
+    saveState();
+    closeModal('clientModal');
+    renderClients();
+  }
+
+  function deleteClient() {
+    const id = document.getElementById('clientId').value;
+    state.clients = state.clients.filter(x => x.id !== id);
+    saveState();
+    closeModal('clientModal');
+    renderClients();
+  }
+
+  function openTemplatesModal() {
+    document.getElementById('templatesModal').classList.add('open');
+  }
+
+  function applyTemplate(title, tag, plan) {
+    closeModal('templatesModal');
+    openTaskModal();
+    document.getElementById('taskTitle').value = title;
+    setPillValue('taskTagSelect', tag);
+    document.getElementById('taskPlan').value = plan;
+  }
+
+  let timerSeconds = 90;
+  let timerDefault = 90;
+  let timerInterval = null;
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function setTimer(sec, label) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerDefault = sec;
+    timerSeconds = sec;
+    document.getElementById('timerDisplay').textContent = formatTime(sec);
+    document.getElementById('timerLabel').textContent = label;
+    document.getElementById('timerStartBtn').textContent = '▶ Старт';
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  function toggleTimer() {
+    const btn = document.getElementById('timerStartBtn');
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      btn.textContent = '▶ Старт';
+    } else {
+      btn.textContent = '⏸ Пауза';
+      timerInterval = setInterval(() => {
+        if (timerSeconds > 0) {
+          timerSeconds--;
+          document.getElementById('timerDisplay').textContent = formatTime(timerSeconds);
+        } else {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          btn.textContent = '▶ Старт';
+          if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+          alert('⏱ Время вышло!');
+        }
+      }, 1000);
+    }
+  }
+
+  function resetTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerSeconds = timerDefault;
+    document.getElementById('timerDisplay').textContent = formatTime(timerSeconds);
+    document.getElementById('timerStartBtn').textContent = '▶ Старт';
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Orlova_Fitness_Backup_${todayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed.tasks && parsed.clients) {
+          state = parsed;
+          saveState();
+          renderTasks();
+          renderClients();
+          alert('✅ База «Орлова фитнес» успешно загружена!');
+        }
+      } catch (err) {
+        alert('Ошибка чтения файла резервной копии.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    window.scrollTo(0, 0);
+  }
+
+  function selectPill(groupId, el) {
+    document.querySelectorAll(`#${groupId} .select-pill`).forEach(p => p.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  function getPillValue(groupId) {
+    return document.querySelector(`#${groupId} .select-pill.selected`)?.dataset.val || '';
+  }
+  function setPillValue(groupId, val) {
+    document.querySelectorAll(`#${groupId} .select-pill`).forEach(p => {
+      p.classList.toggle('selected', p.dataset.val === val);
+    });
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  }
+
+  loadState();
+  renderTasks();
+</script>
+</body>
+</html>
